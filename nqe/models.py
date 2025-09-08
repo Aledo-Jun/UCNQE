@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from itertools import pairwise
 import pennylane as qml
-from .embedding import QLayer
+from .embedding import QuantumEmbeddingLayer
 from .utils import QFIMTracker
 
 
@@ -18,7 +18,7 @@ class Stacking(nn.Module):
 
 class NQE(nn.Module):
     def __init__(self, in_dims: int, n_qubits: int, n_layers: int,
-                 hidden_dims: int | List[int], q_embedding: QLayer):
+                 hidden_dims: int | List[int], q_embedding: QuantumEmbeddingLayer):
         super().__init__()
         self.in_dims = in_dims
         self.n_qubits = n_qubits
@@ -40,7 +40,7 @@ class NQE(nn.Module):
     def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
         x1 = self.linear(x1)
         x2 = self.linear(x2)
-        x = torch.concat([x1, x2], dim=1)
+        x = torch.cat([x1, x2], dim=1)
         x = self.stacking(x)
         x = self.q_layer(x)
         return x[:, 0]
@@ -51,7 +51,7 @@ NQE_repeat = NQE
 
 class NQE_BIG(nn.Module):
     def __init__(self, in_dims: int, n_qubits: int, n_layers: int,
-                 hidden_dims: Optional[int | List[int]], q_embedding: QLayer):
+                 hidden_dims: Optional[int | List[int]], q_embedding: QuantumEmbeddingLayer):
         super().__init__()
         self.in_dims = in_dims
         self.n_qubits = n_qubits
@@ -72,7 +72,7 @@ class NQE_BIG(nn.Module):
     def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
         x1 = self.linear(x1).reshape(-1, self.n_qubits, self.n_layers)
         x2 = self.linear(x2).reshape(-1, self.n_qubits, self.n_layers)
-        x = torch.concat([x1, x2], dim=1).reshape(x1.size(0), -1)
+        x = torch.cat([x1, x2], dim=1).reshape(x1.size(0), -1)
         x = self.q_layer(x)
         return x[:, 0]
 
@@ -103,7 +103,7 @@ class UpConvolution2(nn.Module):
 
 class UCNQE(nn.Module):
     def __init__(self, in_dims: int, n_qubits: int, n_layers: int,
-                 hidden_dims: Optional[int | List[int]], q_embedding: QLayer,
+                 hidden_dims: Optional[int | List[int]], q_embedding: QuantumEmbeddingLayer,
                  mode: Literal['single', 'block']):
         super().__init__()
         self.in_dims = in_dims
@@ -130,7 +130,7 @@ class UCNQE(nn.Module):
     def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
         x1 = self.up_conv(self.linear(x1))
         x2 = self.up_conv(self.linear(x2))
-        x = torch.concat([x1, x2], dim=1)
+        x = torch.cat([x1, x2], dim=1)
         x = self.q_layer(x)
         return x[:, 0]
 
