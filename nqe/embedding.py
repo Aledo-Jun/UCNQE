@@ -28,7 +28,15 @@ def make_qml_device(n_wires, shots=None):
         return qml.device("default.qubit", wires=n_wires, shots=shots)
 
 
-class QLayer:
+class QuantumEmbeddingLayer:
+    """Wrap a feature embedding circuit in PennyLane QNodes.
+
+    The layer exposes QNodes for training with probability outputs and for
+    generating density matrices.  A helper ``_embedding`` method applies the
+    embedding circuit without returning a value, which is useful when composing
+    with additional circuits.
+    """
+
     def __init__(self, embedding, *, n_qubits, dev=None):
         self.embedding = embedding
         self.n_qubits = n_qubits
@@ -68,6 +76,7 @@ class QLayer:
                     x[:, :, i], wires=range(n_qubits),
                     rot_factor=2.0 / n_layers, ent_factor=2.0 / n_layers,
                 )
+            # No return value: this is used for side-effect state preparation.
 
         self._train_qnode = qml.QNode(_train, self.dev, interface="torch")
         self._dm_qnode = qml.QNode(_dm, self.dev, interface="torch")
@@ -78,3 +87,7 @@ class QLayer:
 
     def dm_layer(self, x):
         return self._dm_qnode(x)
+
+
+# Backward compatibility
+QLayer = QuantumEmbeddingLayer

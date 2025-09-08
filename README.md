@@ -19,7 +19,7 @@ nqe/
 The modules can be imported as a package:
 
 ```python
-from nqe import NQE, QLayer, ZZFeatureMap, train_with_early_stopping
+from nqe import NQE, QuantumEmbeddingLayer, ZZFeatureMap, train_with_early_stopping
 ```
 
 The code requires PyTorch, PennyLane and the usual scientific Python stack.

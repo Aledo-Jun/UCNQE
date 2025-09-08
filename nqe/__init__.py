@@ -1,4 +1,4 @@
-from .embedding import QLayer, ZZFeatureMap, make_qml_device
+from .embedding import QuantumEmbeddingLayer, QLayer, ZZFeatureMap, make_qml_device
 from .models import (Stacking, NQE, NQE_BIG, NQE_repeat, UpConvolution1,
                      UpConvolution2, UCNQE, QCNN, Ansatz)
 from .data import (load_mnist_pca, load_fashion_mnist_pca,

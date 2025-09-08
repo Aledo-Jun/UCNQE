@@ -1,6 +1,7 @@
 import numpy
 from pennylane import numpy as np
 import torch
+import torch.nn as nn
 import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
 import mpld3
@@ -8,6 +9,7 @@ from mpld3 import plugins
 from typing import Literal
 import pennylane as qml
 
+# Disable automatic JS injection on import.
 mpld3.disable_notebook()
 
 
@@ -197,7 +199,7 @@ class Metric(nn.Module):
         K = torch.real(torch.einsum('bij,cji->bc', rhos, rhos)).to(torch.float32)
         H = torch.eye(B, device=K.device) - torch.ones((B,B), device=K.device) / B
         Kc = H @ K @ H
-        Ky = torch.ger(y, y)
+        Ky = torch.outer(y, y)
         Ky_c = H @ Ky @ H
         num = torch.sum(Kc*Ky_c)
         den = torch.linalg.norm(Kc, 'fro') * torch.linalg.norm(Ky_c, 'fro')

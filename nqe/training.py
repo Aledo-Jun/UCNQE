@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 from tqdm.auto import trange, tqdm
 from typing import List
 from .data import get_random_data, get_random_data_qcnn
@@ -164,14 +165,13 @@ def train_with_early_stopping_qcnn(model, train_loader, val_loader, test_loader,
         out = model(X)
         loss = loss_fn(out, Y)
         optimizer.zero_grad()
-        c_layer_before = model.nqe.linear
+        c_layer_before = [m.weight.detach().clone() for m in model.nqe.linear if hasattr(m, 'weight')]
         loss.backward()
         optimizer.step()
-        c_layer_after = model.nqe.linear
+        c_layer_after = [m.weight for m in model.nqe.linear if hasattr(m, 'weight')]
         train_loss_hist.append(float(loss.item()))
-        for i in range(len(c_layer_before)):
-            if hasattr(c_layer_before[i], 'weight'):
-                assert torch.allclose(c_layer_before[i].weight, c_layer_after[i].weight, atol=1e-4)
+        for wb, wa in zip(c_layer_before, c_layer_after):
+            assert torch.allclose(wb, wa, atol=1e-4)
         if (step % validate_every) == 0:
             correct = 0
             model.eval()
