@@ -7,6 +7,7 @@ from .data import get_random_data, get_random_data_qcnn
 
 
 def train(model, X_train, Y_train, optimizer, epoch, batch_size, device):
+    """Train ``model`` using randomly generated siamese pairs."""
     model = model.to(device)
     loss_fn = nn.MSELoss()
     train_loss = []
@@ -26,15 +27,18 @@ def train(model, X_train, Y_train, optimizer, epoch, batch_size, device):
 
 
 def build_train_loader(X_train, Y_train, batch_size, *, n=5000):
+    """Pre-generate ``n`` batches for training."""
     return [get_random_data(batch_size, X_train, Y_train) for _ in range(n)]
 
 
 def build_validation_loader(X_val, Y_val, batch_size, *, n=32):
+    """Pre-generate ``n`` batches for validation."""
     return [get_random_data(batch_size, X_val, Y_val) for _ in range(n)]
 
 
 @torch.no_grad()
 def compute_val_loss(model, val_loader, loss_fn, device):
+    """Compute the mean validation loss over ``val_loader``."""
     model.eval()
     acc_loss = 0.0
     for X1, X2, Y in val_loader:
@@ -45,6 +49,8 @@ def compute_val_loss(model, val_loader, loss_fn, device):
 
 
 class EarlyStopper:
+    """Utility to monitor validation loss and stop training early."""
+
     def __init__(self, patience=300, min_delta=1e-4, warmup=100):
         self.patience = patience
         self.min_delta = min_delta
@@ -54,6 +60,7 @@ class EarlyStopper:
         self.best_step = -1
 
     def step(self, val_loss, step, model):
+        """Update stopper state and decide whether to stop."""
         improved = (self.best - val_loss) > self.min_delta
         if improved:
             self.best = val_loss
@@ -68,6 +75,7 @@ def train_with_early_stopping(model, train_loader, val_loader, optimizer,
                               *, max_steps=5000, device=None,
                               validate_every=25, patience=300, warm_up=100,
                               min_delta=1e-4, scheduler=True):
+    """Train ``model`` with early stopping based on validation loss."""
     device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
     loss_fn = nn.MSELoss()
@@ -125,15 +133,18 @@ def train_with_early_stopping(model, train_loader, val_loader, optimizer,
 # QCNN-specific utilities
 
 def build_train_loader_qcnn(X_train, Y_train, batch_size, *, n=5000):
+    """Pre-generate ``n`` training batches for a QCNN."""
     return [get_random_data_qcnn(batch_size, X_train, Y_train) for _ in range(n)]
 
 
 def build_validation_loader_qcnn(X_val, Y_val, batch_size, *, n=32):
+    """Pre-generate ``n`` validation batches for a QCNN."""
     return [get_random_data_qcnn(batch_size, X_val, Y_val) for _ in range(n)]
 
 
 @torch.no_grad()
 def compute_val_loss_qcnn(model, val_loader, loss_fn, device):
+    """Compute the mean validation loss for a QCNN model."""
     model.eval()
     acc_loss = 0.0
     for X, Y in val_loader:
@@ -147,6 +158,7 @@ def train_with_early_stopping_qcnn(model, train_loader, val_loader, test_loader,
                                    *, max_steps=5000, device=None,
                                    validate_every=25, patience=300, warm_up=100,
                                    min_delta=1e-4, scheduler=True):
+    """Train a QCNN model with early stopping and evaluation metrics."""
     device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
     loss_fn = nn.MSELoss()

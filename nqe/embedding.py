@@ -22,6 +22,25 @@ def ZZFeatureMap(features, *, wires, rot_factor=2.0, ent_factor=2.0):
 
 
 def make_qml_device(n_wires, shots=None):
+    """Create a PennyLane device with a sensible fallback.
+
+    The function prefers the fast ``lightning.qubit`` backend when
+    available and falls back to the standard ``default.qubit`` device if
+    the former cannot be instantiated.
+
+    Parameters
+    ----------
+    n_wires:
+        Number of quantum wires the device should support.
+    shots:
+        Optional number of measurement shots. ``None`` denotes analytic
+        mode.
+
+    Returns
+    -------
+    pennylane.Device
+        Instantiated PennyLane device ready for use.
+    """
     try:
         return qml.device("lightning.qubit", wires=n_wires, shots=shots)
     except Exception:
@@ -83,9 +102,33 @@ class QuantumEmbeddingLayer:
         self._embedding = _embedding
 
     def train_layer(self, x):
+        """Evaluate the embedding circuit and return probabilities.
+
+        Parameters
+        ----------
+        x: torch.Tensor
+            Input tensor containing encoded parameters.
+
+        Returns
+        -------
+        torch.Tensor
+            Measurement probabilities for the prepared quantum state.
+        """
         return self._train_qnode(x)
 
     def dm_layer(self, x):
+        """Evaluate the embedding circuit and return density matrices.
+
+        Parameters
+        ----------
+        x: torch.Tensor
+            Input tensor containing encoded parameters.
+
+        Returns
+        -------
+        torch.Tensor
+            Density matrices of the prepared quantum states.
+        """
         return self._dm_qnode(x)
 
 
