@@ -45,6 +45,7 @@ def interactive_legend_for_fig(fig, *, pair_fill=True, alpha_unsel=0.2,
 
 
 def _rolling_mean(x, k):
+    """Compute a simple rolling mean with window ``k``."""
     if len(x) == 0:
         return x
     k = max(1, min(k, len(x)))
@@ -54,6 +55,7 @@ def _rolling_mean(x, k):
 
 
 def _robust_z(x):
+    """Return the robust z-score of ``x`` using median and MAD."""
     x = np.asarray(x, dtype=float)
     med = np.median(x)
     mad = np.median(np.abs(x - med)) + 1e-12
@@ -62,6 +64,11 @@ def _robust_z(x):
 
 def detect_anomalies(train_hist, val_hist, val_steps, *, rel_div_factor=1.8,
                      spike_z=8.0, plateau_windows=10, overfit_tail=6):
+    """Analyze training curves and flag potential anomalies.
+
+    The function checks for divergence, instability spikes, plateaus and
+    overfitting based on training and validation loss histories.
+    """
     out = {"notes": [], "diverge_idx": [], "spike_idx": [],
            "nan_inf": False, "plateau": False, "overfitting": False,
            "best_idx": None}
@@ -122,6 +129,7 @@ def detect_anomalies(train_hist, val_hist, val_steps, *, rel_div_factor=1.8,
 
 @torch.no_grad()
 def _dm_batch_from_inputs(model, Xb: torch.Tensor) -> np.ndarray:
+    """Return density matrices for a batch of inputs."""
     model.eval()
     qfeat = model.c_layer(Xb)
     rho = model.q_embedding._dm_qnode(qfeat)
@@ -129,6 +137,7 @@ def _dm_batch_from_inputs(model, Xb: torch.Tensor) -> np.ndarray:
 
 
 def _bloch_from_dm(dm_batch: np.ndarray):
+    """Compute Bloch vector components from density matrices."""
     sx = np.array([[0, 1], [1, 0]], dtype=np.complex128)
     sy = np.array([[0, -1j], [1j, 0]], dtype=np.complex128)
     sz = np.array([[1, 0], [0, -1]], dtype=np.complex128)
@@ -139,6 +148,7 @@ def _bloch_from_dm(dm_batch: np.ndarray):
 
 
 def _plot_bloch_points(x0, y0, z0, x1, y1, z1, *, title="Bloch sphere: class clusters"):
+    """Plot two sets of Bloch vectors on the Bloch sphere."""
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
     fig = plt.figure(figsize=(7, 7))
     ax = fig.add_subplot(111, projection='3d')
@@ -168,12 +178,15 @@ def _plot_bloch_points(x0, y0, z0, x1, y1, z1, *, title="Bloch sphere: class clu
 
 
 class Metric(nn.Module):
+    """Helper class providing metrics on quantum states."""
+
     def __init__(self, model):
         super().__init__()
         self.c_layer = model.c_layer
         self.q_layer = model.q_embedding._dm_qnode
 
     def separability(self, x0, x1, mode: Literal['Tr','HS'], trained: bool):
+        """Measure class separability using trace or Hilbert–Schmidt distance."""
         if trained:
             self.c_layer.eval()
             x0 = self.c_layer(x0)
@@ -191,6 +204,7 @@ class Metric(nn.Module):
         raise ValueError(f"Invalid mode: {mode}")
 
     def centered_kernel_alignment(self, x, y, trained: bool):
+        """Compute centered kernel alignment between states and labels."""
         if trained:
             self.c_layer.eval()
             x = self.c_layer(x)
@@ -223,6 +237,7 @@ class QFIMTracker:
 
     @torch.no_grad()
     def qfim(self, Xb: torch.Tensor, params: torch.Tensor, max_samples: int | None = 8) -> torch.Tensor:
+        """Estimate the QFIM using up to ``max_samples`` from ``Xb``."""
         if max_samples is None:
             max_samples = Xb.shape[0]
         m = min(int(max_samples), int(Xb.shape[0]))
@@ -244,6 +259,7 @@ class QFIMTracker:
     @staticmethod
     @torch.no_grad()
     def trainability_from_qfim(F: torch.Tensor) -> dict:
+        """Summarize trainability metrics from a QFIM matrix ``F``."""
         F = 0.5 * (F + F.T)
         eps = 1e-12
         evals = torch.linalg.eigvalsh(F + eps*torch.eye(F.shape[0], dtype=F.dtype))

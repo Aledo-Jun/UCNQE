@@ -8,15 +8,28 @@ from .utils import QFIMTracker
 
 
 class Stacking(nn.Module):
+    """Repeat an input tensor along a new layer dimension.
+
+    The module is a small utility used to prepare classical feature
+    tensors for quantum circuits that expect multiple embedding layers.
+    """
+
     def __init__(self, n_layers: int):
         super().__init__()
         self.n_layers = n_layers
 
     def forward(self, x):
+        """Stack ``x`` ``n_layers`` times and flatten the result."""
         return torch.stack([x for _ in range(self.n_layers)], dim=-1).reshape(x.size(0), -1)
 
 
 class NQE(nn.Module):
+    """Neural-Quantum Embedding model for similarity learning.
+
+    A classical feed-forward network maps inputs to the quantum feature
+    space where a small quantum circuit produces a similarity score.
+    """
+
     def __init__(self, in_dims: int, n_qubits: int, n_layers: int,
                  hidden_dims: int | List[int], q_embedding: QuantumEmbeddingLayer):
         super().__init__()
@@ -38,6 +51,7 @@ class NQE(nn.Module):
         self.q_layer = qml.qnn.TorchLayer(self.q_embedding._train_qnode, weight_shapes={})
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
+        """Return the probability of equality for ``x1`` and ``x2``."""
         x1 = self.linear(x1)
         x2 = self.linear(x2)
         x = torch.cat([x1, x2], dim=1)
@@ -50,6 +64,8 @@ NQE_repeat = NQE
 
 
 class NQE_BIG(nn.Module):
+    """Variant of :class:`NQE` with a larger classical network."""
+
     def __init__(self, in_dims: int, n_qubits: int, n_layers: int,
                  hidden_dims: Optional[int | List[int]], q_embedding: QuantumEmbeddingLayer):
         super().__init__()
@@ -70,6 +86,7 @@ class NQE_BIG(nn.Module):
         self.q_layer = qml.qnn.TorchLayer(self.q_embedding._train_qnode, weight_shapes={})
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
+        """Return the probability of equality for ``x1`` and ``x2``."""
         x1 = self.linear(x1).reshape(-1, self.n_qubits, self.n_layers)
         x2 = self.linear(x2).reshape(-1, self.n_qubits, self.n_layers)
         x = torch.cat([x1, x2], dim=1).reshape(x1.size(0), -1)
@@ -78,30 +95,38 @@ class NQE_BIG(nn.Module):
 
 
 class UpConvolution1(nn.Module):
+    """Simple learnable up-convolution for one-dimensional inputs."""
+
     def __init__(self, m):
         super().__init__()
         self.weight = nn.Parameter(torch.empty(1, m))
         nn.init.xavier_uniform_(self.weight)
 
     def forward(self, x):
+        """Repeat ``x`` using a learnable weight matrix."""
         x = x.unsqueeze(2)
         w = self.weight.unsqueeze(0)
         return (x * w).reshape(x.size(0), -1)
 
 
 class UpConvolution2(nn.Module):
+    """Learnable up-convolution for two-dimensional inputs."""
+
     def __init__(self, n, m):
         super().__init__()
         self.weight = nn.Parameter(torch.empty(n, m))
         nn.init.xavier_uniform_(self.weight)
 
     def forward(self, x):
+        """Repeat ``x`` using a learnable weight tensor."""
         x = x.unsqueeze(2)
         w = self.weight.unsqueeze(0)
         return (x * w).reshape(x.size(0), -1)
 
 
 class UCNQE(nn.Module):
+    """Up-convolutional variant of the NQE model."""
+
     def __init__(self, in_dims: int, n_qubits: int, n_layers: int,
                  hidden_dims: Optional[int | List[int]], q_embedding: QuantumEmbeddingLayer,
                  mode: Literal['single', 'block']):
@@ -128,6 +153,7 @@ class UCNQE(nn.Module):
         self.q_layer = qml.qnn.TorchLayer(self.q_embedding._train_qnode, weight_shapes={})
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
+        """Return the probability of equality for ``x1`` and ``x2``."""
         x1 = self.up_conv(self.linear(x1))
         x2 = self.up_conv(self.linear(x2))
         x = torch.cat([x1, x2], dim=1)
@@ -136,12 +162,14 @@ class UCNQE(nn.Module):
 
 
 def SU2(params, wires):
+    """Apply a parameterized SU(2) rotation."""
     qml.RZ(params[0], wires=wires)
     qml.RY(params[1], wires=wires)
     qml.RZ(params[2], wires=wires)
 
 
 def SU4(params, wires, *, cartan_sign='ising'):
+    """Apply a parameterized SU(4) rotation on two wires."""
     if len(wires) != 2:
         raise ValueError("SU4 requires exactly two wires.")
     if qml.math.size(params) != 15:
@@ -166,6 +194,8 @@ def SU4(params, wires, *, cartan_sign='ising'):
 
 
 class Ansatz:
+    """Utility for applying layered SU(4) or TTN ansatz circuits."""
+
     def __init__(self, n_qubits, mode):
         self.n_qubits = n_qubits
         self.mode = mode
@@ -181,6 +211,7 @@ class Ansatz:
             raise ValueError(f"Unknown ansatz mode: {mode}")
 
     def apply(self, params):
+        """Apply the ansatz circuit with the given parameters."""
         if self.mode == 'SU4':
             p = 0
             for (a, b) in self._layout:
@@ -204,6 +235,7 @@ class Ansatz:
 
 @torch.no_grad()
 def _to_layers_from_nqe(nqe, x):
+    """Extract classical features from an NQE-based model."""
     if hasattr(nqe, 'up_conv'):
         nqe.c_layer.eval()
         return nqe.c_layer(x)
@@ -216,6 +248,8 @@ def _to_layers_from_nqe(nqe, x):
 
 
 class QCNN(nn.Module):
+    """Quantum convolutional neural network built on top of NQE features."""
+
     def __init__(self, n_qubits, nqe, ansatz_mode):
         super().__init__()
         self.n_qubits = n_qubits
@@ -241,6 +275,7 @@ class QCNN(nn.Module):
         self.qc_dm = qc_dm
 
     def forward(self, x, for_visual=False):
+        """Evaluate the QCNN and return probabilities or states."""
         qfeat = _to_layers_from_nqe(self.nqe, x)
         if for_visual:
             return self.qc_dm(qfeat, self.params)
