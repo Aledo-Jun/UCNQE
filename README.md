@@ -23,3 +23,17 @@ from nqe import NQE, QuantumEmbeddingLayer, ZZFeatureMap, train_with_early_stopp
 ```
 
 The code requires PyTorch, PennyLane and the usual scientific Python stack.
+
+## Training script
+
+A convenient CLI is available for training NQE models and visualising the loss
+curves:
+
+```bash
+python scripts/train_nqe.py --dataset mnist --pca-dim 8 --n-qubits 4 \
+    --n-layers 2 --hidden-dims 16 16 --max-steps 1000
+```
+
+All major hyper-parameters (dataset choice, model size, optimisation settings,
+number of steps, etc.) can be configured through command line flags.  The script
+saves a plot of the training and validation losses.
