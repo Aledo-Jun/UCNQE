@@ -9,7 +9,7 @@ from nqe.data import (
     build_validation_loader,
 )
 from nqe.embedding import QuantumEmbeddingLayer, ZZFeatureMap
-from nqe.models import NQE
+from nqe.models import NQE, NQE_BIG, UCNQE
 from nqe.training import train_with_early_stopping
 
 
@@ -22,7 +22,19 @@ def parse_args():
         help="Dataset to use (mnist or fashion)",
     )
     parser.add_argument(
+        "--model",
+        choices=["nqe", "nqe_big", "ucnqe"],
+        default="nqe",
+        help="Model variant to train",
+    )
+    parser.add_argument(
         "--pca-dim", type=int, default=8, help="Number of PCA components"
+    )
+    parser.add_argument(
+        "--uc-mode",
+        choices=["single", "block"],
+        default="single",
+        help="UCNQE up-convolution mode",
     )
     parser.add_argument(
         "--n-qubits", type=int, default=4, help="Number of qubits in the quantum layer"
@@ -89,13 +101,21 @@ def main():
     X_train, Y_train, X_test, Y_test = load_dataset(args.dataset, args.pca_dim)
 
     q_layer = QuantumEmbeddingLayer(ZZFeatureMap, n_qubits=args.n_qubits)
-    model = NQE(
-        in_dims=args.pca_dim,
-        n_qubits=args.n_qubits,
-        n_layers=args.n_layers,
-        hidden_dims=args.hidden_dims,
-        q_embedding=q_layer,
-    )
+    model_kwargs = {
+        "in_dims": args.pca_dim,
+        "n_qubits": args.n_qubits,
+        "n_layers": args.n_layers,
+        "hidden_dims": args.hidden_dims,
+        "q_embedding": q_layer,
+    }
+    if args.model == "nqe":
+        model_cls = NQE
+    elif args.model == "nqe_big":
+        model_cls = NQE_BIG
+    else:
+        model_cls = UCNQE
+        model_kwargs["mode"] = args.uc_mode
+    model = model_cls(**model_kwargs)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     train_loader = build_train_loader(

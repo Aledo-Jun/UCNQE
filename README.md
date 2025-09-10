@@ -26,14 +26,17 @@ The code requires PyTorch, PennyLane and the usual scientific Python stack.
 
 ## Training script
 
-A convenient CLI is available for training NQE models and visualising the loss
-curves:
+A convenient CLI is available for training NQE, NQE_BIG or UCNQE models and
+visualising the loss curves.  For example, the following trains a UCNQE model
+with block up-convolution:
 
 ```bash
-python scripts/train_nqe.py --dataset mnist --pca-dim 8 --n-qubits 4 \
-    --n-layers 2 --hidden-dims 16 16 --max-steps 1000
+python scripts/train_nqe.py --model ucnqe --uc-mode block --dataset mnist \
+    --pca-dim 8 --n-qubits 4 --n-layers 2 --hidden-dims 16 16 --max-steps 1000
 ```
 
+The `--model` flag selects the architecture (`nqe`, `nqe_big` or `ucnqe`); the
+`--uc-mode` option chooses the up-convolution strategy used by UCNQE models.
 All major hyper-parameters (dataset choice, model size, optimisation settings,
 number of steps, etc.) can be configured through command line flags.  The script
 saves a plot of the training and validation losses.
